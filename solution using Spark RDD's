@@ -1,0 +1,37 @@
+data = sc.textFile('file:///home/srikarthik/tejdata/survey2012.csv')
+
+header = data.first()
+
+def characterRemoval(x):
+	import re
+	pattern = re.compile(r'\$|,|\"|\?|\(|\)|!|\#|%|&|\.|\[|\]|\-')
+	return pattern.sub('',x)
+
+#Cleaning the raw data by removing unnecessary characters and header
+
+data2 = data.filter(lambda x : x!=header).map(lambda x: (x.split(',')[1].replace('"',''),characterRemoval(x.split(',')[2]).split(' ')))
+
+
+data3 = data2.map(lambda x : (x[0],x[1])).groupByKey().mapValues(list)
+
+
+import itertools
+
+data4 = data3.map(lambda x:(x[0],list(itertools.chain(*x[1]))))
+
+def f(x): return x
+
+data5 = data4.flatMapValues(f)
+
+data6 = data5.map(lambda x : (x,1)).reduceByKey(lambda a,b: a+b).filter(lambda x : (x[0][1].isalpha()))
+
+data7 = data6.map(lambda x : (x[0][0],(x[1],x[0][1]))).groupByKey().mapValues(list).map(lambda x: (x[0],sorted(x[1],key=lambda p: p[0],reverse=True)[:10]))
+
+def iterator(x):
+	return [(x[0],i[1],i[0]) for i in x[1]]
+
+data8 = data7.map(iterator).flatMap(lambda x : x)
+
+data9 = data8.map(lambda x : x[0]+","+x[1]+","+str(x[2]))
+
+data9.coalesce(1).saveAsTextFile("hdfs:///user/srikarthik/avira/")
